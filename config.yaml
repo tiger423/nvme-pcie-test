@@ -1,0 +1,20 @@
+output_dir: ./nvme_reports
+
+smart:
+  duration: 60        # seconds
+  interval: 10        # seconds
+
+fio:
+  runtime: 60         # seconds
+  iodepth: 16
+  bs: 4k
+  ioengine: io_uring
+  workloads: [randread, randwrite, read, write, randrw]
+
+controllers:
+  include_regex: ".*"        # test all
+  exclude_regex: ""          # none excluded
+
+namespaces:
+  include_regex: ".*n[12]$"  # only n1 and n2
+  exclude_regex: ""          # none excluded

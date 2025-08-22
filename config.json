@@ -1,0 +1,8 @@
+{
+  "output_dir": "./nvme_reports",
+  "smart": { "duration": 45, "interval": 5 },
+  "fio": { "runtime": 45, "iodepth": 8, "bs": "8k", "ioengine": "io_uring",
+           "workloads": ["randread", "randwrite"] },
+  "controllers": { "include_regex": ".*", "exclude_regex": "" },
+  "namespaces": { "include_regex": ".*", "exclude_regex": "n3$" }
+}
