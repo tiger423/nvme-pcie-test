@@ -1,13 +1,10 @@
-Perfect 👍 — let’s build the complete test framework with:
 
-✅ Python 3.12 compatibility
 
-✅ NVMe device enumeration (nvme-cli)
+# with YAML
+python nvme_qa.py --config config.yaml
 
-✅ SMART log monitoring & trend plots
+# with JSON
+python nvme_qa.py --config config.json
 
-✅ fio workload execution & trend plots
-
-✅ Merged SMART + FIO timeline plots (temperature vs IOPS vs latency)
-
-✅ JSON + HTML report generator (self-contained, with inline base64 plots)
+# no config (uses built-in defaults)
+python nvme_qa.py
