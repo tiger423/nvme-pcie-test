@@ -9,7 +9,8 @@ fio:
   iodepth: 16
   bs: 4k
   ioengine: io_uring
-  workloads: [randread, randwrite, read, write, randrw]
+  #workloads: [randread, randwrite, read, write, randrw]
+  workloads: [randread, read]
 
 controllers:
   include_regex: ".*"        # test all
@@ -18,3 +19,4 @@ controllers:
 namespaces:
   include_regex: ".*n[12]$"  # only n1 and n2
   exclude_regex: ""          # none excluded
+
