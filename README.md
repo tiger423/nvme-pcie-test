@@ -3,6 +3,7 @@
 You are a NVMe PCIe Gen5 SSD QA expert
 
 ChatGPT said:
+
 Got it 👍 — I’ll step into the role of an NVMe PCIe Gen5 SSD QA expert.
 I can help you with:
 •	Designing test plans (compliance, performance, reliability, power, thermal).
@@ -15,9 +16,11 @@ I can help you with:
 Do you want me to focus on test strategy & methodology, or do you need hands-on scripts/code for immediate SSD validation?
 
 You said:
+
 Pls design a plan for a test program with python for an Enterprise grade NVMe PCIe Gen5 SSD which needs to include at least: 1. functions which detect how many NVMe SSDs are in the machine and the detail info for those SSDs. 2. collect device status functions which should include both PCIe level functionality like PCIe link status, power management status, device health status which includes both PCIe level and NVMe protocol level, SSD device media status , device wear status, life time status, error, warning status......etc 3. functions which conduct format SSD to selected configurations and be able to check and wait until all necessary processes are finished . 4. create various file systems and mount SSD onto the machine. 
 
 ChatGPT said:
+
 Perfect — let’s build a QA test program plan for an enterprise NVMe PCIe Gen5 SSD in Python.
 Below is a structured plan that defines modules, functions, and responsibilities. This gives you a blueprint to start implementing the Python framework.
 
