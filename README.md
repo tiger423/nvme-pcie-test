@@ -36,6 +36,7 @@ A Python-based test suite to validate enterprise NVMe PCIe Gen5 SSDs for:
 •	Filesystem creation and mount operations
 ________________________________________
 2. High-Level Structure
+   
 ssd_test_framework/
 │── main.py                 # Entry point / CLI
 │── device_manager.py       # Device detection & info
@@ -45,7 +46,9 @@ ssd_test_framework/
 │── utils/                  # Shared helper functions
 │── logs/                   # Logs and results
 ________________________________________
+
 3. Modules & Functions
+
 A. Device Manager (device_manager.py)
 Purpose: Detect available NVMe SSDs and gather detailed info.
 Functions:
