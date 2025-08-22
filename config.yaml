@@ -1,0 +1,51 @@
+output_dir: ./nvme_reports
+
+smart:
+  duration: 60
+  interval: 10
+
+fio:
+  runtime: 60
+  iodepth: 16
+  bs: 4k
+  ioengine: io_uring
+  workloads: [randread, randwrite, read, write, randrw]
+
+controllers:
+  include_regex: ".*"
+  exclude_regex: ""
+
+namespaces:
+  include_regex: ".*"
+  exclude_regex: ""
+
+sanitize:
+  enabled: false          # set true to sanitize each controller before tests
+  action: "crypto"        # none | block | overwrite | crypto
+  ause: true
+  owpass: 1
+  interval: 5
+  timeout: 1800
+
+format:
+  enabled: false          # set true to format namespaces before tests
+  lbaf: 0
+  ses: 0                  # 0 none, 1 user-data erase, 2 crypto erase
+  wait_after: 5
+
+write_protect:
+  enabled: false          # requires NVMe feature 0x82 support
+  value: 1                # 0 disable, 1 enable (device-specific semantics)
+
+filesystem:
+  create: false           # set true to mkfs per namespace (BEFORE tests)
+  type: ext4
+  mkfs_options: "-F"
+  mount: false            # set true to mount after mkfs
+  mount_base: "/mnt/nvmeqa"
+  mount_options: "defaults,noatime"
+
+telemetry:
+  sensors_interval: 2
+  turbostat_interval: 2
+  nvme_telemetry: true
