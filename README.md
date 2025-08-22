@@ -1,25 +1,13 @@
-# nvme-pcie-test
+Perfect 👍 — let’s build the complete test framework with:
 
-Changes to Test Plan
+✅ Python 3.12 compatibility
 
-Device Detection (list_nvme_devices)
+✅ NVMe device enumeration (nvme-cli)
 
-Use nvme-cli (nvme list -o json) instead of manual /dev/ enumeration.
+✅ SMART log monitoring & trend plots
 
-This is more robust (handles namespaces, new devices) and avoids false positives.
+✅ fio workload execution & trend plots
 
-Examples for Using Modular Functions
+✅ Merged SMART + FIO timeline plots (temperature vs IOPS vs latency)
 
-I’ll show multiple usage examples for each major function group (device, status, format, fs).
-
-Add HTML Report Generator
-
-Generate an HTML report with:
-
-Device summary (PCIe + NVMe info)
-
-Health (SMART logs, errors, warnings)
-
-Thermal status
-
-Using jinja2 for templating or just plain Python string templates.
+✅ JSON + HTML report generator (self-contained, with inline base64 plots)
