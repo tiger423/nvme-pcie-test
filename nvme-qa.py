@@ -4,16 +4,18 @@
 Enterprise NVMe PCIe Gen5 SSD QA Test Framework (Config-driven)
 Python 3.12 + Ubuntu 24.04
 
-Fixes & Additions in this version:
-- Correct controller/namespace discovery (no more '/dev/nvme1n1n1' issues)
-- Explicit selection of controllers/namespaces via config
-- All prior features retained (fio_on_fs, sanitize/format, WP, mkfs/mount, SMART, power FID=2, sensors, turbostat, telemetry-log)
-- Optional --sudo to auto re-exec as root
-
-Usage:
-  python nvme_qa.py --config config.yaml
-  python nvme_qa.py --config config.yaml --sudo
-  sudo -E python3 nvme_qa.py --config config.yaml
+Fixes in this version:
+- Robust "Device Info" collection per controller:
+  * Maps controller -> PCI BDF via /sys/class/nvme/<ctrl>/device
+  * Reads current/max PCIe link speed/width from sysfs (if present)
+  * Adds lspci -s <BDF> -vv block (scoped to the exact device)
+  * Uses nvme id-ctrl -o json and nvme list-subsys <ctrl>
+  * HTML now JSON-dumps (escaped) so the section never appears empty
+- Plot fixes:
+  * No ticklabel warning (set ticks before labels)
+  * FIO series resampled to SMART timeline to avoid length mismatch
+- Keeps: explicit device selection, fio_on_fs, sanitize/format/WP, mkfs/mount,
+  SMART, power FID=2, sensors, turbostat, telemetry-log, --sudo auto-elevate
 """
 
 from __future__ import annotations
@@ -38,13 +40,10 @@ DEFAULT_CFG: Dict[str, Any] = {
     "output_dir": "./logs",
     "smart": {"duration": 20, "interval": 5},
     "fio": {
-        "runtime": 20,
-        "iodepth": 4,
-        "bs": "4k",
+        "runtime": 20, "iodepth": 4, "bs": "4k",
         "ioengine": "io_uring",
         "workloads": ["randread", "randwrite", "read", "write", "randrw"]
     },
-    # NEW: explicit selection lists + regex
     "controllers": {
         "explicit": [],                 # e.g. ["/dev/nvme0", "/dev/nvme1"]
         "include_regex": r".*",
@@ -79,7 +78,6 @@ def cmd_exists(name: str) -> bool:
     return subprocess.call(f"command -v {shlex.quote(name)} >/dev/null 2>&1", shell=True) == 0
 
 def run_cmd(cmd: str, require_root: bool = False) -> str:
-    """Run a shell command and return stdout (or prefixed error)."""
     try:
         if require_root and os.geteuid() != 0:
             cmd = f"sudo -n {cmd}"
@@ -87,6 +85,13 @@ def run_cmd(cmd: str, require_root: bool = False) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         return f"Error: {e.stderr.strip()}"
+
+def read_sysfs(path: str) -> Optional[str]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception:
+        return None
 
 def timestamp() -> str:
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -104,6 +109,9 @@ def save_json(data: dict, filepath: str) -> None:
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+def html_escape(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def load_config(path: Optional[str]) -> Dict[str, Any]:
     if not path:
@@ -152,7 +160,6 @@ def re_filter(values: List[str], include_regex: str, exclude_regex: str) -> List
 # Discovery
 # ============================
 def list_all_namespaces() -> List[str]:
-    """Return every namespace path (e.g., /dev/nvme0n1, /dev/nvme1n1) from nvme-cli JSON."""
     raw = run_cmd("nvme list -o json")
     ns_paths: List[str] = []
     try:
@@ -165,63 +172,73 @@ def list_all_namespaces() -> List[str]:
         pass
     return ns_paths
 
+def controller_from_ns(ns: str) -> str:
+    return re.sub(r"n\d+$", "", ns)
+
 def list_nvme_controllers(cfg: Dict[str, Any]) -> List[str]:
-    """Unique controller device paths (/dev/nvmeX). Supports explicit selection."""
-    # If explicit controllers are provided, normalize them to /dev/nvmeX
     explicit = [c for c in cfg["controllers"].get("explicit", []) if isinstance(c, str)]
     if explicit:
         ctrls: List[str] = []
         for c in explicit:
             ctrls.append(controller_from_ns(c) if re.search(r"n\d+$", c) else c)
-        # Deduplicate & keep order
-        seen = set()
-        result = []
+        seen, result = set(), []
         for c in ctrls:
             if c not in seen:
-                result.append(c)
-                seen.add(c)
+                result.append(c); seen.add(c)
         return result
-
-    # Derive controllers from all namespaces
     ns_paths = list_all_namespaces()
-    ctrls_set = {controller_from_ns(ns) for ns in ns_paths}
-    ctrls = sorted(ctrls_set)
-
-    # Apply regex filters
+    ctrls = sorted({controller_from_ns(ns) for ns in ns_paths})
     return re_filter(ctrls, cfg["controllers"]["include_regex"], cfg["controllers"]["exclude_regex"])
 
 def list_nvme_namespaces(ctrl: str, cfg: Dict[str, Any]) -> List[str]:
-    """Namespaces belonging to a given controller. Supports explicit selection."""
-    # If explicit namespaces provided, use those that match this controller
     explicit_ns = [n for n in cfg["namespaces"].get("explicit", []) if isinstance(n, str)]
     if explicit_ns:
         sel = [n for n in explicit_ns if controller_from_ns(n) == ctrl]
         return re_filter(sel, cfg["namespaces"]["include_regex"], cfg["namespaces"]["exclude_regex"])
-
-    # Otherwise, discover and filter by controller prefix
     all_ns = list_all_namespaces()
     sel = [ns for ns in all_ns if controller_from_ns(ns) == ctrl]
     return re_filter(sel, cfg["namespaces"]["include_regex"], cfg["namespaces"]["exclude_regex"])
 
+def get_pci_bdf_for_ctrl(ctrl: str) -> Optional[str]:
+    # /sys/class/nvme/nvmeX/device -> .../0000:BB:DD.F
+    name = os.path.basename(ctrl)  # nvmeX
+    link = os.path.realpath(f"/sys/class/nvme/{name}/device")
+    if not link or not os.path.exists(link):
+        return None
+    bdf = os.path.basename(link)
+    return bdf if re.match(r"^[0-9a-fA-F]{4}:\d{2}:\d{2}\.\d$", bdf) else None
+
 def get_device_info(ctrl: str) -> Dict[str, Any]:
-    return {
-        "controller": ctrl,
-        "nvme_list": run_cmd(f"nvme list {ctrl}"),
-        "id_ctrl": run_cmd(f"nvme id-ctrl {ctrl}"),
-        "pcie_info": run_cmd("lspci -vv | grep -A15 -i nvme"),
-    }
+    info: Dict[str, Any] = {"controller": ctrl}
+    bdf = get_pci_bdf_for_ctrl(ctrl)
+    info["pci_bdf"] = bdf or "unknown"
 
-def nsid_from_path(ns: str) -> Optional[int]:
-    m = re.search(r"n(\d+)$", ns)
-    return int(m.group(1)) if m else None
+    # sysfs PCIe attributes (if exposed)
+    if bdf:
+        base = f"/sys/bus/pci/devices/{bdf}"
+        info["pcie_sysfs"] = {
+            "current_link_speed": read_sysfs(f"{base}/current_link_speed"),
+            "current_link_width": read_sysfs(f"{base}/current_link_width"),
+            "max_link_speed": read_sysfs(f"{base}/max_link_speed"),
+            "max_link_width": read_sysfs(f"{base}/max_link_width"),
+        }
+        info["lspci_vv"] = run_cmd(f"lspci -s {bdf} -vv")
 
-def controller_from_ns(ns: str) -> str:
-    # "/dev/nvme0n1" -> "/dev/nvme0"; "/dev/nvme3" -> "/dev/nvme3"
-    return re.sub(r"n\d+$", "", ns)
+    # Controller identification & topology
+    info["nvme_id_ctrl_json"] = run_cmd(f"nvme id-ctrl -o json {ctrl}")
+    info["nvme_list_subsys"] = run_cmd(f"nvme list-subsys {ctrl}")
+    # For convenience, include a filtered 'nvme list -o json' (may be broad on some nvme-cli versions)
+    info["nvme_list_json"] = run_cmd(f"nvme list -o json")
+
+    return info
 
 # ============================
 # Provisioning Hooks
 # ============================
+def nsid_from_path(ns: str) -> Optional[int]:
+    m = re.search(r"n(\d+)$", ns)
+    return int(m.group(1)) if m else None
+
 def format_namespace(ns: str, lbaf: int, ses: int, wait_after: int = 5) -> str:
     out = run_cmd(f"nvme format {ns} --lbaf={lbaf} --ses={ses}", require_root=True)
     if out.startswith("Error:"):
@@ -242,10 +259,8 @@ def sanitize_controller(ctrl: str, action: str, ause: bool, owpass: int, interva
     if code == 0:
         return f"sanitize: invalid action '{action}'"
     args = [f"nvme sanitize {ctrl} --sanact={code}"]
-    if ause:
-        args.append("--ause=1")
-    if action == "overwrite":
-        args.append(f"--owpass={owpass}")
+    if ause: args.append("--ause=1")
+    if action == "overwrite": args.append(f"--owpass={owpass}")
     out = run_cmd(" ".join(args), require_root=True)
     start = time.time()
     while time.time() - start < timeout:
@@ -302,8 +317,7 @@ def monitor_smart(ns: str, interval: int, duration: int) -> List[Dict[str, Any]]
 
 def parse_power_value(txt: str) -> Optional[int]:
     m = re.search(r"Current value:\s*(0x[0-9A-Fa-f]+|\d+)", txt)
-    if not m:
-        return None
+    if not m: return None
     token = m.group(1)
     try:
         return int(token, 0)
@@ -328,7 +342,7 @@ def power_monitor(ctrl: str, interval: int, duration: int) -> List[Dict[str, Any
     return series
 
 # ============================
-# Telemetry (sensors / turbostat / nvme telemetry-log)
+# Telemetry helpers
 # ============================
 def sensors_once() -> Any:
     if not cmd_exists("sensors"):
@@ -384,7 +398,7 @@ def extract_fio_trends(fio_json: Dict[str, Any]) -> Dict[str, List[float]]:
     return trends
 
 # ============================
-# Plotting
+# Plotting (fixed)
 # ============================
 def plot_series(values: List[float], title: str, ylabel: str) -> str:
     if not values:
@@ -398,13 +412,7 @@ def plot_series(values: List[float], title: str, ylabel: str) -> str:
     fig.tight_layout()
     return b64_plot(fig)
 
-
-
-
-# --- replace existing plot_smart_trend and plot_combined_timeline with the ones below ---
-
 def plot_smart_trend(logs: List[Dict[str, Any]], metric: str, ylabel: str) -> str:
-    """Plot a SMART metric over the sampled timeline (fix ticks/ticklabels usage)."""
     if not logs:
         return ""
     times = [e["time"] for e in logs]
@@ -421,9 +429,7 @@ def plot_smart_trend(logs: List[Dict[str, Any]], metric: str, ylabel: str) -> st
     fig.tight_layout()
     return b64_plot(fig)
 
-
 def _resample_to_len(values: List[float], target_len: int) -> List[float]:
-    """Nearest-neighbor resample (no numpy) so we can align short FIO series to SMART timeline length."""
     if target_len <= 0:
         return []
     if not values:
@@ -433,33 +439,25 @@ def _resample_to_len(values: List[float], target_len: int) -> List[float]:
         return values
     if target_len == 1:
         return [values[0]]
-    # map each target index to nearest source index
     mapped = []
     for i in range(target_len):
-        # scale i in [0..target_len-1] to [0..n-1]
         src = round(i * (n - 1) / (target_len - 1))
         mapped.append(values[src])
     return mapped
 
-
 def plot_combined_timeline(smart_logs: List[Dict[str, Any]], fio_trends: Dict[str, List[float]], workload: str) -> str:
-    """
-    Plot temperature vs (IOPS, latency) on twin y-axes aligned to SMART timeline.
-    FIO aggregates are resampled to match SMART sample count to avoid length mismatch.
-    """
     if not smart_logs:
         return ""
     times = [e["time"] for e in smart_logs]
     temps = [e.get("temperature", 0) for e in smart_logs]
     x = list(range(len(times)))
 
-    # Resample fio series to match SMART sample count (handles len==1 gracefully)
     iops_series = _resample_to_len(fio_trends.get("iops", []), len(times))
     lat_series  = _resample_to_len(fio_trends.get("latency", []), len(times)) if fio_trends.get("latency") else []
 
     fig, ax1 = plt.subplots(figsize=(7, 4))
     ax1.set_xlabel("Time")
-    ax1.set_ylabel("Temperature (Â°C)", color="tab:red")
+    ax1.set_ylabel("Temperature (¢XC)", color="tab:red")
     ax1.plot(x, temps, marker="o")
     ax1.tick_params(axis="y", labelcolor="tab:red")
     ax1.set_xticks(x)
@@ -476,20 +474,6 @@ def plot_combined_timeline(smart_logs: List[Dict[str, Any]], fio_trends: Dict[st
     fig.suptitle(f"Combined Timeline ({workload})")
     fig.tight_layout()
     return b64_plot(fig)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # ============================
 # Workers (per workload / namespace)
@@ -628,12 +612,10 @@ def consolidate_results(controllers: List[str], cfg: Dict[str, Any]) -> Tuple[st
         dev_data["info"] = get_device_info(ctrl)
         dev_data["namespaces"] = {}
 
-        # Provision all namespaces (WP/format/mkfs/mount)
         prov_map: Dict[str, Dict[str, Any]] = {}
         for ns in namespaces:
             prov_map[ns] = maybe_provision_namespace(ns, cfg)
 
-        # Run all namespaces in parallel
         with ThreadPoolExecutor(max_workers=len(namespaces) or 1) as executor:
             futmap = {
                 executor.submit(test_namespace, ns, cfg, mountpoint=prov_map.get(ns, {}).get("mountpoint")): ns
@@ -646,7 +628,6 @@ def consolidate_results(controllers: List[str], cfg: Dict[str, Any]) -> Tuple[st
                 except Exception as e:
                     dev_data["namespaces"][ns] = {"provision": prov_map.get(ns, {}), "results": {"error": str(e)}}
 
-        # Unmount where applicable
         for ns in namespaces:
             dev_data["namespaces"][ns]["post"] = maybe_unmount_namespace(ns, cfg, dev_data["namespaces"][ns]["provision"])
 
@@ -670,12 +651,15 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
     for ctrl, data in results.items():
         html.append(f"<h2>Controller: {ctrl}</h2>")
         if "sanitize" in data:
-            html.append(f"<details><summary>Sanitize Result</summary><pre>{data['sanitize']}</pre></details>")
-        html.append("<h3>Device Info</h3><pre>{}</pre>".format(data.get("info", {})))
+            html.append(f"<details><summary>Sanitize Result</summary><pre>{html_escape(str(data['sanitize']))}</pre></details>")
+
+        # Device Info (JSON pretty + escaped)
+        info_pretty = html_escape(json.dumps(data.get("info", {}), indent=2))
+        html.append("<h3>Device Info</h3><pre>{}</pre>".format(info_pretty))
 
         if data.get("nvme_telemetry_log"):
             html.append("<details><summary>NVMe Telemetry Log (controller)</summary>")
-            html.append(f"<pre>{data['nvme_telemetry_log']}</pre></details>")
+            html.append(f"<pre>{html_escape(str(data['nvme_telemetry_log']))}</pre></details>")
 
         for ns, ns_obj in data.get("namespaces", {}).items():
             html.append(f"<h3>Namespace: {ns}</h3>")
@@ -683,14 +667,14 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
             prov = ns_obj.get("provision", {}).get("actions", {})
             if prov:
                 html.append("<details><summary>Provisioning</summary><pre>")
-                html.append(json.dumps(prov, indent=2))
+                html.append(html_escape(json.dumps(prov, indent=2)))
                 html.append("</pre></details>")
 
             res = ns_obj.get("results", {})
             logs = res.get("smart_logs", [])
             if logs:
                 html.append("<h4>SMART Trends</h4>")
-                for metric, ylabel in [("temperature", "Temp (Â¢XC)"),
+                for metric, ylabel in [("temperature", "Temp (¢XC)"),
                                        ("percentage_used", "% Used"),
                                        ("media_errors", "Media Errors"),
                                        ("critical_warnings", "Critical Warnings")]:
@@ -702,7 +686,7 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
             for rw, wdata in workloads.items():
                 if "fio_trends" in wdata:
                     html.append(f"<h4>Workload: {rw} {'(fio_on_fs)' if wdata.get('using_fs') else '(raw)'} </h4>")
-                    html.append(f"<p><b>Target:</b> {wdata.get('fio_target')}</p>")
+                    html.append(f"<p><b>Target:</b> {html_escape(str(wdata.get('fio_target')))}</p>")
                     iops = wdata["fio_trends"].get("iops", [])
                     lat = wdata["fio_trends"].get("latency", [])
                     if iops:
@@ -719,17 +703,17 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
                     tele = wdata.get("telemetry", {})
                     if tele:
                         html.append("<details><summary>Per-Workload Telemetry</summary><pre>")
-                        html.append(json.dumps({
+                        html.append(html_escape(json.dumps({
                             "power_states": tele.get("power_states", []),
                             "sensors_series": tele.get("sensors_series", "n/a"),
-                            "turbostat": tele.get("turbostat", "n/a")[:100000]
-                        }, indent=2))
+                            "turbostat": (tele.get("turbostat", "n/a") or "")[:100000]
+                        }, indent=2)))
                         html.append("</pre></details>")
 
             post = ns_obj.get("post", {})
             if post:
                 html.append("<details><summary>Post Actions</summary><pre>")
-                html.append(json.dumps(post, indent=2))
+                html.append(html_escape(json.dumps(post, indent=2)))
                 html.append("</pre></details>")
 
         html.append("<hr>")
@@ -748,13 +732,11 @@ def main():
     ap.add_argument("--sudo", action="store_true", help="Re-exec this script under sudo if not already root")
     args = ap.parse_args()
 
-    # Auto-elevate if requested and not root
     if args.sudo and os.geteuid() != 0:
         os.execvp("sudo", ["sudo", "-E", sys.executable, __file__] + (["--config", args.config] if args.config else []))
 
     cfg = load_config(args.config)
 
-    # Discover controllers (or honor explicit config)
     controllers = list_nvme_controllers(cfg)
     if not controllers:
         print("[ERROR] No NVMe controllers detected (or filtered out).")
@@ -769,4 +751,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
