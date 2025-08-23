@@ -457,7 +457,7 @@ def plot_combined_timeline(smart_logs: List[Dict[str, Any]], fio_trends: Dict[st
 
     fig, ax1 = plt.subplots(figsize=(7, 4))
     ax1.set_xlabel("Time")
-    ax1.set_ylabel("Temperature (¢XC)", color="tab:red")
+    ax1.set_ylabel("Temperature (Â¢XC)", color="tab:red")
     ax1.plot(x, temps, marker="o")
     ax1.tick_params(axis="y", labelcolor="tab:red")
     ax1.set_xticks(x)
@@ -674,7 +674,7 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
             logs = res.get("smart_logs", [])
             if logs:
                 html.append("<h4>SMART Trends</h4>")
-                for metric, ylabel in [("temperature", "Temp (¢XC)"),
+                for metric, ylabel in [("temperature", "Temp (Â¢XC)"),
                                        ("percentage_used", "% Used"),
                                        ("media_errors", "Media Errors"),
                                        ("critical_warnings", "Critical Warnings")]:
