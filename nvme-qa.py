@@ -398,42 +398,98 @@ def plot_series(values: List[float], title: str, ylabel: str) -> str:
     fig.tight_layout()
     return b64_plot(fig)
 
+
+
+
+# --- replace existing plot_smart_trend and plot_combined_timeline with the ones below ---
+
 def plot_smart_trend(logs: List[Dict[str, Any]], metric: str, ylabel: str) -> str:
+    """Plot a SMART metric over the sampled timeline (fix ticks/ticklabels usage)."""
     if not logs:
         return ""
     times = [e["time"] for e in logs]
     vals = [e.get(metric, 0) for e in logs]
     fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(times, vals, marker="o")
+    x = list(range(len(times)))
+    ax.plot(x, vals, marker="o")
     ax.set_title(f"{metric.replace('_',' ').title()} Trend")
     ax.set_ylabel(ylabel)
-    ax.set_xticks(times)
+    ax.set_xlabel("Time")
+    ax.set_xticks(x)
     ax.set_xticklabels(times, rotation=45, fontsize=8)
     ax.grid(True)
     fig.tight_layout()
     return b64_plot(fig)
 
+
+def _resample_to_len(values: List[float], target_len: int) -> List[float]:
+    """Nearest-neighbor resample (no numpy) so we can align short FIO series to SMART timeline length."""
+    if target_len <= 0:
+        return []
+    if not values:
+        return [0.0] * target_len
+    n = len(values)
+    if n == target_len:
+        return values
+    if target_len == 1:
+        return [values[0]]
+    # map each target index to nearest source index
+    mapped = []
+    for i in range(target_len):
+        # scale i in [0..target_len-1] to [0..n-1]
+        src = round(i * (n - 1) / (target_len - 1))
+        mapped.append(values[src])
+    return mapped
+
+
 def plot_combined_timeline(smart_logs: List[Dict[str, Any]], fio_trends: Dict[str, List[float]], workload: str) -> str:
-    if not smart_logs or not fio_trends.get("iops"):
+    """
+    Plot temperature vs (IOPS, latency) on twin y-axes aligned to SMART timeline.
+    FIO aggregates are resampled to match SMART sample count to avoid length mismatch.
+    """
+    if not smart_logs:
         return ""
     times = [e["time"] for e in smart_logs]
     temps = [e.get("temperature", 0) for e in smart_logs]
+    x = list(range(len(times)))
+
+    # Resample fio series to match SMART sample count (handles len==1 gracefully)
+    iops_series = _resample_to_len(fio_trends.get("iops", []), len(times))
+    lat_series  = _resample_to_len(fio_trends.get("latency", []), len(times)) if fio_trends.get("latency") else []
+
     fig, ax1 = plt.subplots(figsize=(7, 4))
     ax1.set_xlabel("Time")
-    ax1.set_ylabel("Temperature (¢XC)", color="tab:red")
-    ax1.plot(times, temps, marker="o")
+    ax1.set_ylabel("Temperature (Â°C)", color="tab:red")
+    ax1.plot(x, temps, marker="o")
     ax1.tick_params(axis="y", labelcolor="tab:red")
+    ax1.set_xticks(x)
     ax1.set_xticklabels(times, rotation=45, fontsize=8)
 
     ax2 = ax1.twinx()
     ax2.set_ylabel("IOPS / Latency (us)", color="tab:blue")
-    ax2.plot(times, fio_trends["iops"], marker="s")
-    if fio_trends.get("latency"):
-        ax2.plot(times, fio_trends["latency"], marker="^")
+    if any(iops_series):
+        ax2.plot(x, iops_series, marker="s")
+    if lat_series and any(lat_series):
+        ax2.plot(x, lat_series, marker="^")
     ax2.tick_params(axis="y", labelcolor="tab:blue")
+
     fig.suptitle(f"Combined Timeline ({workload})")
     fig.tight_layout()
     return b64_plot(fig)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ============================
 # Workers (per workload / namespace)
@@ -634,7 +690,7 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
             logs = res.get("smart_logs", [])
             if logs:
                 html.append("<h4>SMART Trends</h4>")
-                for metric, ylabel in [("temperature", "Temp (¢XC)"),
+                for metric, ylabel in [("temperature", "Temp (Â¢XC)"),
                                        ("percentage_used", "% Used"),
                                        ("media_errors", "Media Errors"),
                                        ("critical_warnings", "Critical Warnings")]:
@@ -713,3 +769,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
