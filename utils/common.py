@@ -104,6 +104,12 @@ def re_filter(values: List[str], include_regex: str, exclude_regex: str) -> List
         out.append(v)
     return out
 
+def kelvin_to_celsius(kelvin_temp: float) -> float:
+    """Convert temperature from Kelvin to Celsius"""
+    if kelvin_temp == 0:
+        return 0  # Handle case where temperature is not available
+    return kelvin_temp - 273.15
+
 def get_nvme_health(ns: str) -> str:
     return run_cmd(f"nvme smart-log -o json {ns}")
 
