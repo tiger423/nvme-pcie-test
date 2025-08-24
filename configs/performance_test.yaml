@@ -1,0 +1,18 @@
+fio:
+  runtime: 30           # seconds per test
+  iodepth: 4           # queue depth
+  bs: "4k"             # block size
+  ioengine: "io_uring" # io engine
+  direct: true         # direct I/O
+  
+workloads:
+  - "randread"
+  - "randwrite"
+  - "read"
+  - "write"
+  - "randrw"
+
+csv_export:
+  enabled: true
+  directory: "./csv_exports"
+  filename_prefix: "performance_test"

@@ -1,0 +1,18 @@
+monitoring:
+  interval: 10          # seconds between readings
+  duration: 300         # total monitoring duration (0 = continuous)
+  
+thresholds:
+  temperature_warning: 70     # °C
+  temperature_critical: 80    # °C
+  percentage_used_warning: 80 # %
+  percentage_used_critical: 90 # %
+  
+csv_export:
+  enabled: true
+  directory: "./csv_exports"
+  filename_prefix: "health_monitoring"
+  
+alerts:
+  enabled: true
+  console_warnings: true
