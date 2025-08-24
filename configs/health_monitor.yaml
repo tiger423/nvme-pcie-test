@@ -1,0 +1,21 @@
+# NVMe Health Monitoring Configuration
+
+monitoring_interval: 3600
+
+csv_retention_days: 30
+
+email_alerts: false
+email_config:
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  sender_email: "your-email@gmail.com"
+  sender_password: "your-app-password"
+  recipient_email: "alerts@your-domain.com"
+
+alert_thresholds:
+  temperature_warning: 70      # °C
+  temperature_critical: 80     # °C
+  percentage_used_warning: 80  # %
+  percentage_used_critical: 90 # %
+  media_errors_warning: 50
+  media_errors_critical: 100
