@@ -45,7 +45,7 @@ Produces JSON + HTML reports (with embedded plots).
 Works with Ubuntu 24.04 / Python 3.12; cmds requiring privileges auto-use sudo -n.
 
 
-
+'''
 1) Flow chart & API cheat‑sheet
 2) Flow chart (high-level run)
 flowchart TD
@@ -79,6 +79,8 @@ flowchart TD
   P --> Q[Consolidate results -> JSON]
   Q --> R[Render HTML report]
   R --> S[End]
+
+'''
 
 Key module-level helpers & APIs
 
