@@ -1,0 +1,42 @@
+
+# Minimal (your host: /dev/nvme1 + /dev/nvme1n1, fio_on_fs=true)
+
+output_dir: ./nvme_reports
+
+controllers:
+  explicit: ["/dev/nvme1"]
+  include_regex: ".*"
+  exclude_regex: ""
+
+namespaces:
+  explicit: ["/dev/nvme1n1"]
+  include_regex: ".*"
+  exclude_regex: ""
+
+smart:
+  duration: 30
+  interval: 5
+
+fio:
+  runtime: 20
+  iodepth: 4
+  bs: "4k"
+  ioengine: "io_uring"
+  workloads: ["randread", "randwrite"]
+
+filesystem:
+  create: true
+  type: ext4
+  mkfs_options: "-F"
+  mount: true
+  mount_base: /mnt/nvmeqa
+  mount_options: "defaults,noatime"
+  fio_on_fs: true
+  fio_file_size: "8G"
+  fio_file_prefix: "fio_nvmeqa"
+
+telemetry:
+  sensors_interval: 2
+  turbostat_interval: 2
+  nvme_telemetry: true
+  power_interval: 2

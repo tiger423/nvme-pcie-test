@@ -1,0 +1,20 @@
+
+
+# Destructive ops (opt?in!)
+
+format:
+  enabled: false           # if true: nvme format
+  lbaf: 0                  # LBA format index
+  ses: 0                   # Secure Erase Setting (0=none)
+
+sanitize:
+  enabled: false           # if true: nvme sanitize
+  action: "none"           # "block" | "overwrite" | "crypto"
+  ause: true               # Allow Unrestricted Sanitize Exit
+  owpass: 1                # overwrite passes (if action=overwrite)
+  interval: 5              # status poll interval (seconds)
+  timeout: 1800            # stop waiting after N seconds
+
+write_protect:
+  enabled: false
+  value: 1                 # FID 0x82 value (device-dependent)

@@ -1,0 +1,15 @@
+
+# Raw-device workloads only (no mkfs/mount)
+
+controllers:
+  explicit: ["/dev/nvme1"]
+namespaces:
+  explicit: ["/dev/nvme1n1"]
+
+filesystem:
+  create: false
+  mount: false
+  fio_on_fs: false
+
+fio:
+  workloads: ["randread", "randwrite", "randrw"]

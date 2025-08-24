@@ -1,0 +1,9 @@
+
+# fio workloads
+
+fio:
+  runtime: 20              # seconds per workload
+  iodepth: 4
+  bs: "4k"
+  ioengine: "io_uring"     # or "libaio"
+  workloads: ["randread", "randwrite", "read", "write", "randrw"]

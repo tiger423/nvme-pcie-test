@@ -1,0 +1,6 @@
+
+# SMART sampling
+
+smart:
+  duration: 30     # seconds (per namespace test)
+  interval: 5      # seconds

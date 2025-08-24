@@ -1,0 +1,15 @@
+
+
+# Filesystem & fio-on-FS
+
+
+filesystem:
+  create: true             # run mkfs.<type> on the namespace block device
+  type: ext4               # ext4, xfs, ...
+  mkfs_options: "-F"       # mkfs flags (e.g., ext4: -F, -E lazy_journal_tune=1)
+  mount: true
+  mount_base: /mnt/nvmeqa  # mountpoint becomes /mnt/nvmeqa/<nvmeXnY>
+  mount_options: "defaults,noatime"
+  fio_on_fs: true          # if true, fio targets files in the mounted FS
+  fio_file_size: "8G"      # per-file size
+  fio_file_prefix: "fio_nvmeqa"
