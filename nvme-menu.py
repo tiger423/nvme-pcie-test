@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from utils.common import print_header, check_sudo_access
+from utils.common import print_header, check_sudo_access, list_nvme_devices_nvme_cli
 
 def show_menu():
     print_header("NVMe QA Testing Menu")
@@ -29,15 +29,45 @@ def show_menu():
     print("0.  Exit")
     print("-" * 60)
 
+def get_device_parameters(sample_name: str):
+    """Get appropriate device parameters for samples that need them"""
+    controllers, namespaces = list_nvme_devices_nvme_cli()
+    
+    namespace_samples = ["03_smart_monitoring.py", "04_health_csv_export.py", 
+                        "06_formatting.py", "08_filesystem_ops.py"]
+    controller_samples = ["07_sanitization.py", "09_power_monitoring.py", "10_telemetry.py"]
+    target_samples = ["05_fio_performance.py"]
+    
+    if sample_name in namespace_samples:
+        if namespaces:
+            return ["--namespace", namespaces[0]]
+    elif sample_name in controller_samples:
+        if controllers:
+            return ["--controller", controllers[0]]
+    elif sample_name in target_samples:
+        if namespaces:
+            return ["--target", namespaces[0]]
+        elif controllers:
+            return ["--target", controllers[0]]
+    
+    return []
+
 def run_sample(sample_name: str):
     sample_path = Path(__file__).parent / "samples" / sample_name
     if not sample_path.exists():
         print(f"Error: Sample {sample_name} not found")
         return
     
+    cmd = [sys.executable, str(sample_path)]
+    device_params = get_device_parameters(sample_name)
+    cmd.extend(device_params)
+    
+    need_sudo = bool(device_params) and check_sudo_access()
+    if need_sudo:
+        cmd = ["sudo", "-E"] + cmd
+    
     try:
-        result = subprocess.run([sys.executable, str(sample_path)], 
-                              check=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         if result.stdout:
             print(result.stdout, end='')
         if result.stderr:
