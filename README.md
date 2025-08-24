@@ -30,12 +30,17 @@ Works with Ubuntu 24.04 / Python 3.12; cmds requiring privileges auto-use sudo -
 
 
 1) Flow chart & API cheat‑sheet
-Flow chart (high-level run)
+2) Flow chart (high-level run)
 flowchart TD
+
   A[Start nvme_qa.py] --> B[Load config (JSON/YAML)]
+  
   B --> C{--sudo flag?}
+  
   C -->|yes & not root| D[Re-exec via sudo -E]
+  
   C -->|no| E[List controllers]
+  
   D --> E
   E -->|explicit in config?| F1[Use explicit controllers]
   E -->|else| F2[nvme list -o json -> derive controllers]
