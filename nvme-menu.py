@@ -65,18 +65,23 @@ def run_sample(sample_name: str):
     need_sudo = bool(device_params) and check_sudo_access()
     if need_sudo:
         cmd = ["sudo", "-E"] + cmd
+        print(f"Running with sudo: {' '.join(cmd)}")
+        print("You may be prompted for your password...")
     
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        if result.stdout:
-            print(result.stdout, end='')
-        if result.stderr:
-            print(result.stderr, end='')
+        if need_sudo:
+            result = subprocess.run(cmd, check=True)
+        else:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            if result.stdout:
+                print(result.stdout, end='')
+            if result.stderr:
+                print(result.stderr, end='')
     except subprocess.CalledProcessError as e:
-        print(f"Error running sample (exit code {e.returncode}):")
-        if e.stdout:
+        print(f"Error running sample (exit code {e.returncode})")
+        if hasattr(e, 'stdout') and e.stdout:
             print("STDOUT:", e.stdout)
-        if e.stderr:
+        if hasattr(e, 'stderr') and e.stderr:
             print("STDERR:", e.stderr)
         print(f"Command: {' '.join(e.cmd)}")
     except Exception as e:
