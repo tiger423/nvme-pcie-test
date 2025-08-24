@@ -7,7 +7,24 @@ run (ubunut 24.04, python 3.12):
 python3 nvme-qa.py --config config.yaml --sudo
 
 
+Highlights / Fixes:
+- Robust "Device Info" (PCI BDF via sysfs/uevent/udevadm, hex bus/device supported).
+- Safe `nvme list-subsys` wrapper (normalizes /dev path, fallbacks).
+- Global command-output sanitizer (removes ANSI, applies backspaces, normalizes CR).
+- Correct discovery (no bogus '/dev/nvme1n1n1').
+- Explicit controller/namespace selection in config.
+- fio_on_fs mode (file-based workloads on created/mounted FS).
+- Power state sampling via 'nvme get-feature -f 2' during workloads.
+- SMART trends, sensors, turbostat, nvme telemetry-log.
+- JSON + HTML reports (embedded plots; escaped blocks).
+- Plot fixes (ticks/ticklabels + series resampling).
+- Privileged commands auto sudo-able; --sudo re-exec option.
+- All string literals are raw (r"...") or raw+formatted (fr"...").
 
+Usage:
+  python3 nvme_qa.py --config config.yaml
+  python3 nvme_qa.py --config config.yaml --sudo
+  sudo -E python3 nvme_qa.py --config config.yaml
 
 
 NVMe Gen5 QA Test Program — Developer & User Guide
