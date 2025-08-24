@@ -1,8 +1,0 @@
-
-# Telemetry:
-
-telemetry:
-  sensors_interval: 2      # lm-sensors sampling
-  turbostat_interval: 2    # turbostat sampling
-  nvme_telemetry: true     # nvme telemetry-log at end of controller run
-  power_interval: 2        # nvme FID=2 sampling interval
