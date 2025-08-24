@@ -168,6 +168,12 @@ def timestamp() -> str:
 def time_hms() -> str:
     return datetime.now().strftime("%H:%M:%S")
 
+def kelvin_to_celsius(kelvin_temp: float) -> float:
+    """Convert temperature from Kelvin to Celsius"""
+    if kelvin_temp == 0:
+        return 0  # Handle case where temperature is not available
+    return kelvin_temp - 273.15
+
 def b64_plot(fig) -> str:
     buf = io.BytesIO()
     fig.savefig(buf, format="png")
@@ -500,7 +506,7 @@ def monitor_smart(ns: str, interval: int, duration: int) -> List[Dict[str, Any]]
             j = json.loads(raw)
             logs.append({
                 "time": time_hms(),
-                "temperature": j.get("temperature", 0),
+                "temperature": kelvin_to_celsius(j.get("temperature", 0)),
                 "percentage_used": j.get("percentage_used", 0),
                 "media_errors": j.get("media_errors", 0),
                 "critical_warnings": j.get("critical_warning", 0),
@@ -653,7 +659,7 @@ def plot_combined_timeline(smart_logs: List[Dict[str, Any]], fio_trends: Dict[st
 
     fig, ax1 = plt.subplots(figsize=(7, 4))
     ax1.set_xlabel("Time")
-    ax1.set_ylabel("Temperature (¢XC)", color="tab:red")
+    ax1.set_ylabel("Temperature (ï¿½XC)", color="tab:red")
     ax1.plot(x, temps, marker="o")
     ax1.tick_params(axis="y", labelcolor="tab:red")
     ax1.set_xticks(x)
@@ -879,7 +885,7 @@ def generate_html_report(results: Dict[str, Any], cfg: Dict[str, Any]) -> str:
             logs = res.get("smart_logs", [])
             if logs:
                 html.append("<h4>SMART Trends</h4>")
-                for metric, ylabel in [("temperature", "Temp (¢XC)"),
+                for metric, ylabel in [("temperature", "Temp (ï¿½XC)"),
                                        ("percentage_used", "% Used"),
                                        ("media_errors", "Media Errors"),
                                        ("critical_warnings", "Critical Warnings")]:
