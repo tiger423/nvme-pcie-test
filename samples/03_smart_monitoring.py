@@ -46,7 +46,7 @@ def monitor_smart_data(namespace: str, interval: int = 5, duration: int = 30):
                 
                 logs.append(log_entry)
                 
-                print(f"[{log_entry['time']}] Temp: {log_entry['temperature']}°C, "
+                print(f"[{log_entry['time']}] Temp: {log_entry['temperature']:.1f}°C, "
                       f"Used: {log_entry['percentage_used']}%, "
                       f"Errors: {log_entry['media_errors']}, "
                       f"Warnings: {log_entry['critical_warnings']}")
@@ -113,7 +113,7 @@ def main():
         
         print_section("Summary")
         temps = [log['temperature'] for log in logs]
-        print(f"Temperature: Min={min(temps)}°C, Max={max(temps)}°C, Avg={sum(temps)/len(temps):.1f}°C")
+        print(f"Temperature: Min={min(temps):.1f}°C, Max={max(temps):.1f}°C, Avg={sum(temps)/len(temps):.1f}°C")
         
         final_log = logs[-1]
         print(f"Final percentage used: {final_log['percentage_used']}%")

@@ -66,7 +66,7 @@ def assess_health_status(metrics):
     
     temp = metrics.get('temperature', 0)
     if temp > 70:
-        warnings.append(f"High temperature: {temp}°C")
+        warnings.append(f"High temperature: {temp:.1f}°C")
     
     used = metrics.get('percentage_used', 0)
     if used > 80:
@@ -109,7 +109,7 @@ def continuous_monitoring(namespace: str, csv_path: str, interval: int = 10):
             
             status_indicator = "⚠️ " if warnings else "✅"
             print(f"[{metrics['time']}] {status_indicator} "
-                  f"Temp: {metrics['temperature']}°C, "
+                  f"Temp: {metrics['temperature']:.1f}°C, "
                   f"Used: {metrics['percentage_used']}%, "
                   f"Errors: {metrics['media_errors']}")
             
@@ -156,7 +156,7 @@ def single_snapshot(namespace: str, csv_path: str):
     print(f"Firmware: {device_info['firmware']}")
     
     print_section("Critical Health Metrics")
-    print(f"Temperature: {metrics['temperature']}°C")
+    print(f"Temperature: {metrics['temperature']:.1f}°C")
     print(f"Percentage Used: {metrics['percentage_used']}%")
     print(f"Media Errors: {metrics['media_errors']}")
     print(f"Critical Warnings: {metrics['critical_warnings']}")
