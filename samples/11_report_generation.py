@@ -13,7 +13,7 @@ from pathlib import Path
 import argparse
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from utils.common import print_header, print_section, timestamp, kelvin_to_celsius
+from utils.common import print_header, print_section, timestamp, get_temperature_celsius
 
 try:
     import matplotlib.pyplot as plt
@@ -101,7 +101,7 @@ def plot_combined_timeline(smart_logs, fio_data, workload):
         return ""
     
     times = [e["time"] for e in smart_logs]
-    temps = [kelvin_to_celsius(e.get("temperature", 0)) for e in smart_logs]
+    temps = [get_temperature_celsius(e) for e in smart_logs]
     x = list(range(len(times)))
     
     iops_series = fio_data.get("iops", [])

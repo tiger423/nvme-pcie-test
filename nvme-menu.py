@@ -25,7 +25,8 @@ def show_menu():
     print("9.  Power State Monitoring")
     print("10. System Telemetry Collection")
     print("11. Report Generation & Visualization")
-    print("12. Run Full QA Suite (Original)")
+    print("12. Debug SMART Data")
+    print("13. Run Full QA Suite (Original)")
     print("0.  Exit")
     print("-" * 60)
 
@@ -115,7 +116,7 @@ def main():
     while True:
         show_menu()
         try:
-            choice = input("Select option [0-12]: ").strip()
+            choice = input("Select option [0-13]: ").strip()
             
             if choice == "0":
                 print("Goodbye!")
@@ -143,9 +144,11 @@ def main():
             elif choice == "11":
                 run_sample("11_report_generation.py")
             elif choice == "12":
+                run_sample("debug_smart.py")
+            elif choice == "13":
                 run_original_qa()
             else:
-                print("Invalid choice. Please select 0-12.")
+                print("Invalid choice. Please select 0-13.")
             
             if choice != "0":
                 input("\nPress Enter to continue...")
