@@ -107,9 +107,9 @@ class NVMeHealthMonitor:
         
         temp = health_metrics["temperature"]
         if temp >= thresholds["temperature_critical"]:
-            alerts.append(f"CRITICAL: Temperature {temp}°C exceeds critical threshold ({thresholds['temperature_critical']}°C)")
+            alerts.append(f"CRITICAL: Temperature {temp:.1f}°C exceeds critical threshold ({thresholds['temperature_critical']}°C)")
         elif temp >= thresholds["temperature_warning"]:
-            alerts.append(f"WARNING: Temperature {temp}°C exceeds warning threshold ({thresholds['temperature_warning']}°C)")
+            alerts.append(f"WARNING: Temperature {temp:.1f}°C exceeds warning threshold ({thresholds['temperature_warning']}°C)")
         
         used = health_metrics["percentage_used"]
         if used >= thresholds["percentage_used_critical"]:
