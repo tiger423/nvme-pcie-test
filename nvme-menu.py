@@ -9,7 +9,10 @@ import sys
 import subprocess
 from pathlib import Path
 
+#  sys.path.insert(0, path), which inserts the path at the beginning of the list, ensuring
+#  that Python searches this directory first when looking for modules.  
 sys.path.insert(0, str(Path(__file__).parent))
+
 from utils.common import print_header, check_sudo_access, list_nvme_devices_nvme_cli
 
 def show_menu():
