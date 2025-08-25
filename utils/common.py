@@ -173,3 +173,74 @@ def confirm_action(message: str) -> bool:
             return False
         else:
             print("Please enter 'y' or 'n'")
+
+def load_samples_from_location(source_path: str, target_path: str = None) -> bool:
+    """
+    Load sample files from a specified location to current folder
+    
+    Args:
+        source_path: Path to directory containing sample files  
+        target_path: Optional target directory (defaults to './samples/')
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    import shutil
+    from pathlib import Path
+    
+    try:
+        source_dir = Path(source_path).resolve()
+        if not source_dir.exists():
+            print(f"Error: Source directory '{source_path}' does not exist")
+            return False
+        
+        if not source_dir.is_dir():
+            print(f"Error: '{source_path}' is not a directory")
+            return False
+        
+        # Default target is samples directory in current working directory
+        if target_path is None:
+            target_dir = Path.cwd() / "samples"
+        else:
+            target_dir = Path(target_path).resolve()
+        
+        # Create target directory if it doesn't exist
+        target_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Target directory: {target_dir}")
+        
+        # Find Python files in source directory
+        py_files = list(source_dir.glob("*.py"))
+        if not py_files:
+            print(f"No Python files found in '{source_path}'")
+            return False
+        
+        print(f"Found {len(py_files)} Python files in source directory")
+        
+        copied_count = 0
+        skipped_count = 0
+        
+        for py_file in py_files:
+            target_file = target_dir / py_file.name
+            
+            # Check if file already exists
+            if target_file.exists():
+                if not confirm_action(f"File '{py_file.name}' already exists. Overwrite?"):
+                    print(f"Skipped: {py_file.name}")
+                    skipped_count += 1
+                    continue
+            
+            try:
+                # Copy file preserving permissions
+                shutil.copy2(py_file, target_file)
+                print(f"Copied: {py_file.name}")
+                copied_count += 1
+            except Exception as e:
+                print(f"Error copying {py_file.name}: {e}")
+                return False
+        
+        print(f"\nSummary: {copied_count} files copied, {skipped_count} files skipped")
+        return copied_count > 0
+        
+    except Exception as e:
+        print(f"Error loading samples: {e}")
+        return False

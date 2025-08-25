@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from utils.common import print_header, check_sudo_access, list_nvme_devices_nvme_cli
+from utils.common import print_header, check_sudo_access, list_nvme_devices_nvme_cli, load_samples_from_location, confirm_action
 
 def show_menu():
     print_header("NVMe QA Testing Menu")
@@ -27,6 +27,7 @@ def show_menu():
     print("11. Report Generation & Visualization")
     print("12. Debug SMART Data")
     print("13. Run Full QA Suite (Original)")
+    print("14. Load Samples from Location")
     print("0.  Exit")
     print("-" * 60)
 
@@ -112,11 +113,38 @@ def run_original_qa():
     except KeyboardInterrupt:
         print("\nQA suite interrupted by user")
 
+def load_samples_menu():
+    """Interactive menu for loading samples from external location"""
+    print_header("Load Samples from External Location")
+    print("This will copy Python sample files to your current samples directory.")
+    print()
+    
+    source_path = input("Enter source directory path: ").strip()
+    if not source_path:
+        print("No path provided. Operation cancelled.")
+        return
+    
+    custom_target = input("Enter custom target directory (or press Enter for default './samples/'): ").strip()
+    target_path = custom_target if custom_target else None
+    
+    print(f"\nSource: {source_path}")
+    print(f"Target: {target_path or './samples/'}")
+    print()
+    
+    if confirm_action("Proceed with loading samples?"):
+        success = load_samples_from_location(source_path, target_path)
+        if success:
+            print("✓ Samples loaded successfully!")
+        else:
+            print("✗ Failed to load samples")
+    else:
+        print("Operation cancelled.")
+
 def main():
     while True:
         show_menu()
         try:
-            choice = input("Select option [0-13]: ").strip()
+            choice = input("Select option [0-14]: ").strip()
             
             if choice == "0":
                 print("Goodbye!")
@@ -147,8 +175,10 @@ def main():
                 run_sample("debug_smart.py")
             elif choice == "13":
                 run_original_qa()
+            elif choice == "14":
+                load_samples_menu()
             else:
-                print("Invalid choice. Please select 0-13.")
+                print("Invalid choice. Please select 0-14.")
             
             if choice != "0":
                 input("\nPress Enter to continue...")
