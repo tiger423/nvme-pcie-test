@@ -7,7 +7,7 @@ import csv
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from .common import timestamp, kelvin_to_celsius
+from .common import timestamp, get_temperature_celsius
 
 def ensure_csv_dir(filepath: str) -> str:
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
@@ -45,7 +45,7 @@ def save_health_data_csv(health_logs: List[Dict], device_info: Dict, filepath: s
             'controller': device_info.get('controller', 'unknown'),
             'model': device_info.get('model', 'unknown'),
             'serial': device_info.get('serial', 'unknown'),
-            'temperature_c': kelvin_to_celsius(log.get('temperature', 0)),
+            'temperature_c': get_temperature_celsius(log),
             'percentage_used': log.get('percentage_used', 0),
             'media_errors': log.get('media_errors', 0),
             'critical_warnings': log.get('critical_warnings', 0)

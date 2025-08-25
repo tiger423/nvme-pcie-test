@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.common import (print_header, print_section, list_nvme_devices_nvme_cli, 
-                         get_nvme_health, time_hms, controller_from_ns, kelvin_to_celsius)
+                         get_nvme_health, time_hms, controller_from_ns, get_temperature_celsius)
 from utils.csv_export import save_health_data_csv, get_csv_filepath
 
 def monitor_smart_data(namespace: str, interval: int = 5, duration: int = 30):
@@ -36,7 +36,7 @@ def monitor_smart_data(namespace: str, interval: int = 5, duration: int = 30):
                 
                 log_entry = {
                     "time": time_hms(),
-                    "temperature": kelvin_to_celsius(health_data.get("temperature", 0)),
+                    "temperature": get_temperature_celsius(health_data),
                     "percentage_used": health_data.get("percentage_used", 0),
                     "media_errors": health_data.get("media_errors", 0),
                     "critical_warnings": health_data.get("critical_warning", 0),

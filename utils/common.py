@@ -113,6 +113,46 @@ def kelvin_to_celsius(kelvin_temp: float) -> float:
         return 0  # Handle case where temperature is not available
     return kelvin_temp - 273.15
 
+def debug_smart_data(ns: str) -> None:
+    """Debug function to inspect raw SMART data structure"""
+    raw_health = get_nvme_health(ns)
+    if raw_health.startswith("Error:"):
+        print(f"Error getting SMART data: {raw_health}")
+        return
+    
+    try:
+        health_data = json.loads(raw_health)
+        print("=== Raw SMART Data Structure ===")
+        for key, value in health_data.items():
+            if "temp" in key.lower():
+                print(f"{key}: {value} (type: {type(value)})")
+        print("=== All SMART Fields ===")
+        for key, value in health_data.items():
+            print(f"{key}: {value}")
+    except json.JSONDecodeError as e:
+        print(f"JSON decode error: {e}")
+
+def get_temperature_celsius(health_data: dict) -> float:
+    """Extract and convert temperature from SMART data to Celsius"""
+    temp_fields = [
+        "temperature",           # Standard temperature field
+        "composite_temperature", # Composite temperature
+        "temperature_sensor_1",  # First temperature sensor
+        "temp"                  # Alternative field name
+    ]
+    
+    for field in temp_fields:
+        if field in health_data:
+            temp_value = health_data[field]
+            if isinstance(temp_value, (int, float)) and temp_value > 0:
+                if 250 <= temp_value <= 400:
+                    return kelvin_to_celsius(temp_value)
+                elif 0 <= temp_value <= 150:
+                    return float(temp_value)
+                print(f"Warning: Suspicious temperature value {temp_value} in field '{field}'")
+    
+    return 0.0
+
 def check_sudo_access() -> bool:
     return os.geteuid() == 0 or subprocess.call("sudo -n true", shell=True) == 0
 

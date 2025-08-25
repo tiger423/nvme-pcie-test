@@ -174,6 +174,27 @@ def kelvin_to_celsius(kelvin_temp: float) -> float:
         return 0  # Handle case where temperature is not available
     return kelvin_temp - 273.15
 
+def get_temperature_celsius(health_data: dict) -> float:
+    """Extract and convert temperature from SMART data to Celsius"""
+    temp_fields = [
+        "temperature",           
+        "composite_temperature", 
+        "temperature_sensor_1",  
+        "temp"                  
+    ]
+    
+    for field in temp_fields:
+        if field in health_data:
+            temp_value = health_data[field]
+            if isinstance(temp_value, (int, float)) and temp_value > 0:
+                if 250 <= temp_value <= 400:
+                    return kelvin_to_celsius(temp_value)
+                elif 0 <= temp_value <= 150:
+                    return float(temp_value)
+                print(f"Warning: Suspicious temperature value {temp_value} in field '{field}'")
+    
+    return 0.0
+
 def b64_plot(fig) -> str:
     buf = io.BytesIO()
     fig.savefig(buf, format="png")
@@ -506,7 +527,7 @@ def monitor_smart(ns: str, interval: int, duration: int) -> List[Dict[str, Any]]
             j = json.loads(raw)
             logs.append({
                 "time": time_hms(),
-                "temperature": kelvin_to_celsius(j.get("temperature", 0)),
+                "temperature": get_temperature_celsius(j),
                 "percentage_used": j.get("percentage_used", 0),
                 "media_errors": j.get("media_errors", 0),
                 "critical_warnings": j.get("critical_warning", 0),

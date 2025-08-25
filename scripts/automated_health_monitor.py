@@ -16,7 +16,7 @@ from email.mime.multipart import MIMEMultipart
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.common import (print_header, list_nvme_devices_nvme_cli, 
-                         get_nvme_health, timestamp, kelvin_to_celsius)
+                         get_nvme_health, timestamp, get_temperature_celsius)
 from utils.csv_export import save_health_data_csv, get_csv_filepath, append_to_csv
 
 class HealthThresholds:
@@ -83,7 +83,7 @@ class NVMeHealthMonitor:
             health_metrics = {
                 "timestamp": datetime.now().isoformat(),
                 "namespace": namespace,
-                "temperature": kelvin_to_celsius(health_data.get("temperature", 0)),
+                "temperature": get_temperature_celsius(health_data),
                 "percentage_used": health_data.get("percentage_used", 0),
                 "media_errors": health_data.get("media_errors", 0),
                 "critical_warnings": health_data.get("critical_warning", 0),
